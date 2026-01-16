@@ -344,9 +344,9 @@
   }
 
   init().catch(err => {
-    console.error(err);
-    alert("初始化失敗，請稍後再試");
-  });
+  console.error(err);
+  alert("初始化失敗：\n" + (err?.message || err));
+});
 </script>
 </body>
 </html>
