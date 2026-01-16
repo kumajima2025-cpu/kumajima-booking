@@ -178,16 +178,13 @@
   </div>
 
 <script>
-  // ====== 你要改的 2 個地方 ======
   const LIFF_ID = "2008905602-sYNLh7oj";
   const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwzcXsBEZtxsabOgT3RL0NcDeH4UjxKsVdjleey-sENw6EaE-vvqI6IH7OGcLx6CvR_Rw/exec";
 
-  // ====== state ======
   let profile = null;
-  let selectedSlot = null; // {start_iso, end_iso, label}
+  let selectedSlot = null;
   let services = [];
 
-  // ====== helpers ======
   const $ = (id) => document.getElementById(id);
 
   function fmtDateYmd(d){
@@ -213,19 +210,36 @@
     const u = new URL(WEB_APP_URL);
     u.searchParams.set("route", route);
     Object.entries(params || {}).forEach(([k,v]) => u.searchParams.set(k, v));
+
     const res = await fetch(u.toString(), { method:"GET" });
-    return res.json();
+    const text = await res.text();
+
+    let json;
+    try { json = JSON.parse(text); }
+    catch { throw new Error("API 回傳不是 JSON：\n" + text.slice(0,200)); }
+
+    if (!res.ok) throw new Error("API HTTP 錯誤：" + res.status + "\n" + text.slice(0,200));
+    return json;
   }
 
   async function apiPost(route, body){
     const u = new URL(WEB_APP_URL);
     u.searchParams.set("route", route);
+
     const res = await fetch(u.toString(), {
       method:"POST",
       headers:{ "Content-Type":"application/json" },
       body: JSON.stringify(body || {})
     });
-    return res.json();
+
+    const text = await res.text();
+
+    let json;
+    try { json = JSON.parse(text); }
+    catch { throw new Error("API 回傳不是 JSON：\n" + text.slice(0,200)); }
+
+    if (!res.ok) throw new Error("API HTTP 錯誤：" + res.status + "\n" + text.slice(0,200));
+    return json;
   }
 
   function renderSlots(slots){
@@ -260,6 +274,7 @@
   async function refreshSlots(){
     const date = $("date").value;
     const svc = $("service").value;
+
     if (!date || !svc){
       $("slots").innerHTML = "";
       selectedSlot = null;
@@ -267,8 +282,10 @@
       setSubmitEnabled();
       return;
     }
+
     setHint("載入可預約時段中…");
     const res = await apiGet("slots", { date, service: svc });
+
     if (!res.ok){
       setHint("載入失敗，請稍後再試");
       return;
@@ -277,37 +294,35 @@
   }
 
   async function init(){
-    // 日期預設今天
+    // iPhone date picker 必備：min/max（今天～未來60天）
     const today = new Date();
-    $("date").value = fmtDateYmd(today);
+    const maxDay = new Date();
+    maxDay.setDate(today.getDate() + 60);
 
-    // LIFF init + profile
+    const dateInput = $("date");
+    dateInput.min = fmtDateYmd(today);
+    dateInput.max = fmtDateYmd(maxDay);
+    dateInput.value = fmtDateYmd(today);
+
+    // LIFF init
     await liff.init({ liffId: LIFF_ID });
 
-if (!liff.isLoggedIn()) {
-  liff.login({ redirectUri: location.href });
-  return; // ✅ 這個 return 超重要
-}
+    if (!liff.isLoggedIn()) {
+      liff.login({ redirectUri: location.href });
+      return;
+    }
 
-profile = await liff.getProfile();
-$("me").textContent = `Hi ${profile.displayName} 👋`;
+    profile = await liff.getProfile();
+    $("me").textContent = `Hi ${profile.displayName} 👋`;
 
-    // 讀服務
-    async function apiGet(route, params){
-  const u = new URL(WEB_APP_URL);
-  u.searchParams.set("route", route);
-  Object.entries(params || {}).forEach(([k,v]) => u.searchParams.set(k, v));
+    // 讀服務（這段你剛剛貼 code 時不小心刪掉了）
+    const svcRes = await apiGet("services", {});
+    services = (svcRes.services || []);
 
-  const res = await fetch(u.toString(), { method:"GET" });
-  const text = await res.text();
-
-  let json;
-  try { json = JSON.parse(text); }
-  catch { throw new Error("API 回傳不是 JSON：\n" + text.slice(0,200)); }
-
-  if (!res.ok) throw new Error("API HTTP 錯誤：" + res.status + "\n" + text.slice(0,200));
-  return json;
-}
+    const sel = $("service");
+    sel.innerHTML =
+      `<option value="">請選擇</option>` +
+      services.map(s => `<option value="${s.service_code}">${s.service_name}</option>`).join("");
 
     // 綁事件
     $("service").addEventListener("change", refreshSlots);
@@ -332,14 +347,14 @@ $("me").textContent = `Hi ${profile.displayName} 👋`;
       };
 
       const res = await apiPost("book", payload);
+
       if (!res.ok){
         alert(res.error || "預約失敗，請再試一次");
-        await refreshSlots(); // 失敗也重新抓一次（可能被搶走）
+        await refreshSlots();
         setSubmitEnabled();
         return;
       }
 
-      // 成功畫面
       $("card-main").style.display = "none";
       $("card-result").style.display = "block";
       $("resultText").textContent =
@@ -347,19 +362,17 @@ $("me").textContent = `Hi ${profile.displayName} 👋`;
         `你的預約已成立，我們也會透過 LINE 推播「預約成功」通知。\n` +
         `（前一天也會再提醒你一次 🤎）\n\n` +
         `預約編號：${res.booking_id}`;
-
-      // 可選：自動關閉視窗（LIFF）
-      // liff.closeWindow();
     });
 
-    // 初次載入 slots（等服務選了再抓）
+    // 初次狀態
     refreshSlots();
   }
 
   init().catch(err => {
-  console.error(err);
-  alert("初始化失敗：\n" + (err?.message || err));
-});
+    console.error(err);
+    alert("初始化失敗：\n" + (err?.message || err));
+  });
 </script>
+
 </body>
 </html>
