@@ -283,18 +283,31 @@
 
     // LIFF init + profile
     await liff.init({ liffId: LIFF_ID });
-    if (!liff.isLoggedIn()) liff.login();
 
-    profile = await liff.getProfile();
-    $("me").textContent = `Hi ${profile.displayName} 👋`;
+if (!liff.isLoggedIn()) {
+  liff.login({ redirectUri: location.href });
+  return; // ✅ 這個 return 超重要
+}
+
+profile = await liff.getProfile();
+$("me").textContent = `Hi ${profile.displayName} 👋`;
 
     // 讀服務
-    const svcRes = await apiGet("services", {});
-    services = (svcRes.services || []);
-    const sel = $("service");
-    sel.innerHTML = `<option value="">請選擇</option>` + services.map(s =>
-      `<option value="${s.service_code}">${s.service_name}</option>`
-    ).join("");
+    async function apiGet(route, params){
+  const u = new URL(WEB_APP_URL);
+  u.searchParams.set("route", route);
+  Object.entries(params || {}).forEach(([k,v]) => u.searchParams.set(k, v));
+
+  const res = await fetch(u.toString(), { method:"GET" });
+  const text = await res.text();
+
+  let json;
+  try { json = JSON.parse(text); }
+  catch { throw new Error("API 回傳不是 JSON：\n" + text.slice(0,200)); }
+
+  if (!res.ok) throw new Error("API HTTP 錯誤：" + res.status + "\n" + text.slice(0,200));
+  return json;
+}
 
     // 綁事件
     $("service").addEventListener("change", refreshSlots);
