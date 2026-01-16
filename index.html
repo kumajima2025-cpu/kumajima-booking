@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>熊嶼｜LINE 預約</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    :root{
+      --bg:#FFF7ED;
+      --card:#FFFFFF;
+      --border:#F1D2BA;
+      --text:#4A342E;
+      --muted:#8B6F61;
+      --latte:#C35A2E;
+      --latte2:#E07A3F;
+      --chip:#FFF1E7;
+      --shadow:0 10px 28px rgba(36, 26, 22, .08);
+      --radius:22px;
+      --radius-sm:16px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","PingFang TC","Heiti TC",sans-serif;
+    }
+    .wrap{max-width:720px;margin:0 auto;padding:18px 14px 40px;}
+    .hero{
+      padding:18px 16px 8px;
+      display:flex;gap:12px;align-items:center;justify-content:space-between;
+    }
+    .brand{
+      display:flex;flex-direction:column;gap:4px;
+    }
+    .brand h1{margin:0;font-size:20px;letter-spacing:.5px}
+    .brand p{margin:0;color:var(--muted);font-size:13px}
+    .badge{
+      background:linear-gradient(135deg,var(--latte),var(--latte2));
+      color:white;
+      padding:8px 12px;border-radius:999px;
+      font-weight:700;font-size:12px;
+      box-shadow:0 10px 20px rgba(195,90,46,.18);
+      white-space:nowrap;
+    }
+    .card{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:16px;
+      margin:12px 0;
+    }
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
+    input,select,textarea{
+      width:100%;
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:12px 12px;
+      background:#fff;
+      color:var(--text);
+      outline:none;
+      font-size:14px;
+    }
+    textarea{min-height:86px;resize:vertical}
+    .col{flex:1;min-width:180px}
+    .slots{
+      display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;
+    }
+    .slot-btn{
+      border:1px solid var(--border);
+      background:var(--chip);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:999px;
+      cursor:pointer;
+      font-weight:700;
+      transition:.15s transform ease,.15s box-shadow ease,.15s background ease;
+    }
+    .slot-btn:hover{transform:translateY(-1px)}
+    .slot-btn.active{
+      background:linear-gradient(135deg,var(--latte),var(--latte2));
+      color:#fff;
+      border-color:transparent;
+      box-shadow:0 10px 18px rgba(195,90,46,.18);
+    }
+    .muted{color:var(--muted);font-size:13px;line-height:1.6}
+    .actions{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:14px}
+    .btn{
+      border:none;
+      background:linear-gradient(135deg,var(--latte),var(--latte2));
+      color:white;
+      padding:12px 14px;
+      border-radius:16px;
+      font-weight:800;
+      cursor:pointer;
+      width:100%;
+      box-shadow:0 12px 22px rgba(195,90,46,.20);
+    }
+    .btn:disabled{opacity:.55;cursor:not-allowed}
+    .small{font-size:12px;color:var(--muted)}
+    .ok{
+      padding:14px;
+      border-radius:18px;
+      background:#fff;
+      border:1px dashed var(--border);
+      line-height:1.7;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <div class="brand">
+        <h1>熊嶼｜LINE 預約</h1>
+        <p>一對一服務｜可選時段會即時變動</p>
+      </div>
+      <div class="badge">暖橘奶油系 🤎</div>
+    </div>
+
+    <div class="card" id="card-main">
+      <div class="row">
+        <div class="col">
+          <label>選擇服務</label>
+          <select id="service"></select>
+        </div>
+        <div class="col">
+          <label>選擇日期</label>
+          <input id="date" type="date"/>
+        </div>
+      </div>
+
+      <div style="margin-top:12px">
+        <label>可選時段（點一下就選）</label>
+        <div class="muted" id="slot-hint">請先選服務與日期～</div>
+        <div class="slots" id="slots"></div>
+      </div>
+
+      <div class="row" style="margin-top:14px">
+        <div class="col">
+          <label>顧客姓名</label>
+          <input id="customer_name" placeholder="例：王小明"/>
+        </div>
+        <div class="col">
+          <label>手機</label>
+          <input id="phone" inputmode="tel" placeholder="例：09xxxxxxxx"/>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px">
+        <div class="col">
+          <label>毛孩名字</label>
+          <input id="pet_name" placeholder="例：奶油"/>
+        </div>
+        <div class="col">
+          <label>品種（可不填）</label>
+          <input id="pet_breed" placeholder="例：比熊"/>
+        </div>
+      </div>
+
+      <div style="margin-top:10px">
+        <label>備註（可不填）</label>
+        <textarea id="note" placeholder="例：怕吹風、皮膚敏感、想留圓頭…"></textarea>
+      </div>
+
+      <div class="actions">
+        <div class="small" id="me">載入 LINE 資訊中…</div>
+        <button class="btn" id="submit" disabled>送出預約</button>
+      </div>
+    </div>
+
+    <div class="card" id="card-result" style="display:none">
+      <div class="ok" id="resultText"></div>
+      <div style="margin-top:12px" class="muted">你可以直接關閉此頁面回到 LINE 🤎</div>
+    </div>
+  </div>
+
+<script>
+  // ====== 你要改的 2 個地方 ======
+  const LIFF_ID = "PASTE_YOUR_LIFF_ID_HERE";
+  const WEB_APP_URL = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";
+
+  // ====== state ======
+  let profile = null;
+  let selectedSlot = null; // {start_iso, end_iso, label}
+  let services = [];
+
+  // ====== helpers ======
+  const $ = (id) => document.getElementById(id);
+
+  function fmtDateYmd(d){
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const da = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${da}`;
+  }
+
+  function setHint(msg){ $("slot-hint").textContent = msg; }
+
+  function setSubmitEnabled(){
+    const ok =
+      selectedSlot &&
+      $("customer_name").value.trim() &&
+      $("phone").value.trim() &&
+      $("pet_name").value.trim() &&
+      $("service").value;
+    $("submit").disabled = !ok;
+  }
+
+  async function apiGet(route, params){
+    const u = new URL(WEB_APP_URL);
+    u.searchParams.set("route", route);
+    Object.entries(params || {}).forEach(([k,v]) => u.searchParams.set(k, v));
+    const res = await fetch(u.toString(), { method:"GET" });
+    return res.json();
+  }
+
+  async function apiPost(route, body){
+    const u = new URL(WEB_APP_URL);
+    u.searchParams.set("route", route);
+    const res = await fetch(u.toString(), {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify(body || {})
+    });
+    return res.json();
+  }
+
+  function renderSlots(slots){
+    const box = $("slots");
+    box.innerHTML = "";
+    selectedSlot = null;
+    setSubmitEnabled();
+
+    if (!slots || slots.length === 0){
+      setHint("今天沒有可預約時段（或已額滿），換一天看看～");
+      return;
+    }
+    setHint("選一個你想要的時間 🤎");
+
+    slots.forEach(s => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "slot-btn";
+      b.textContent = s.label;
+
+      b.addEventListener("click", () => {
+        [...box.querySelectorAll(".slot-btn")].forEach(x => x.classList.remove("active"));
+        b.classList.add("active");
+        selectedSlot = s;
+        setSubmitEnabled();
+      });
+
+      box.appendChild(b);
+    });
+  }
+
+  async function refreshSlots(){
+    const date = $("date").value;
+    const svc = $("service").value;
+    if (!date || !svc){
+      $("slots").innerHTML = "";
+      selectedSlot = null;
+      setHint("請先選服務與日期～");
+      setSubmitEnabled();
+      return;
+    }
+    setHint("載入可預約時段中…");
+    const res = await apiGet("slots", { date, service: svc });
+    if (!res.ok){
+      setHint("載入失敗，請稍後再試");
+      return;
+    }
+    renderSlots(res.slots);
+  }
+
+  async function init(){
+    // 日期預設今天
+    const today = new Date();
+    $("date").value = fmtDateYmd(today);
+
+    // LIFF init + profile
+    await liff.init({ liffId: LIFF_ID });
+    if (!liff.isLoggedIn()) liff.login();
+
+    profile = await liff.getProfile();
+    $("me").textContent = `Hi ${profile.displayName} 👋`;
+
+    // 讀服務
+    const svcRes = await apiGet("services", {});
+    services = (svcRes.services || []);
+    const sel = $("service");
+    sel.innerHTML = `<option value="">請選擇</option>` + services.map(s =>
+      `<option value="${s.service_code}">${s.service_name}</option>`
+    ).join("");
+
+    // 綁事件
+    $("service").addEventListener("change", refreshSlots);
+    $("date").addEventListener("change", refreshSlots);
+    ["customer_name","phone","pet_name","note","pet_breed"].forEach(id =>
+      $(id).addEventListener("input", setSubmitEnabled)
+    );
+
+    $("submit").addEventListener("click", async () => {
+      $("submit").disabled = true;
+
+      const payload = {
+        line_user_id: profile.userId,
+        line_display_name: profile.displayName,
+        customer_name: $("customer_name").value.trim(),
+        phone: $("phone").value.trim(),
+        pet_name: $("pet_name").value.trim(),
+        pet_breed: $("pet_breed").value.trim(),
+        note: $("note").value.trim(),
+        service_code: $("service").value,
+        start_iso: selectedSlot.start_iso,
+      };
+
+      const res = await apiPost("book", payload);
+      if (!res.ok){
+        alert(res.error || "預約失敗，請再試一次");
+        await refreshSlots(); // 失敗也重新抓一次（可能被搶走）
+        setSubmitEnabled();
+        return;
+      }
+
+      // 成功畫面
+      $("card-main").style.display = "none";
+      $("card-result").style.display = "block";
+      $("resultText").textContent =
+        `✅ 預約完成！\n\n` +
+        `你的預約已成立，我們也會透過 LINE 推播「預約成功」通知。\n` +
+        `（前一天也會再提醒你一次 🤎）\n\n` +
+        `預約編號：${res.booking_id}`;
+
+      // 可選：自動關閉視窗（LIFF）
+      // liff.closeWindow();
+    });
+
+    // 初次載入 slots（等服務選了再抓）
+    refreshSlots();
+  }
+
+  init().catch(err => {
+    console.error(err);
+    alert("初始化失敗，請稍後再試");
+  });
+</script>
+</body>
+</html>
